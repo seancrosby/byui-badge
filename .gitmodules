@@ -1,0 +1,3 @@
+[submodule "external/e-badge"]
+	path = external/e-badge
+	url = git@github.com:BYU-I-eBadge/e-badge.git
