@@ -135,15 +135,15 @@ void drawDiamond(int activeNum = 0) {
 }
 
 void drawCodeProgress() {
-  tft.fillRect(60, 80, 200, 30, COLOR_BG);
-  tft.setCursor(80, 85);
-  tft.setTextSize(3);
+  tft.setCursor(220, 30);
+  tft.setTextSize(2);
   tft.setTextColor(COLOR_TEXT);
+  tft.fillRect(220, 30, 100, 20, COLOR_BG); // Clear progress area
   for (int i = 0; i < CODE_LENGTH; i++) {
     if (i < enteredCode.length()) {
-      tft.print("* ");
+      tft.print("*");
     } else {
-      tft.print("_ ");
+      tft.print("_");
     }
   }
 }
@@ -154,7 +154,7 @@ void resetCodeEntry() {
   tft.setCursor(40, 30);
   tft.setTextSize(2);
   tft.setTextColor(COLOR_TEXT);
-  tft.println("Enter Passcode:");
+  tft.print("Enter Passcode: ");
   drawCodeProgress();
   drawDiamond();
 }
@@ -189,6 +189,15 @@ void setup() {
   tft.init(240, 320);
   tft.setRotation(1);
   tft.fillScreen(COLOR_BG);
+
+  // Splash Screen
+  tft.setCursor(0, 80);
+  tft.setTextColor(ST77XX_RED);
+  tft.setTextSize(3);
+  tft.println("    MARS BASE\n");
+  tft.setTextColor(ST77XX_GREEN);
+  tft.println("  Access Control");
+  delay(5000);
 
   loadConfig();
   resetCodeEntry();
