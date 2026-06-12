@@ -15,6 +15,7 @@
 #include <Adafruit_ST7789.h>
 #include <SPI.h>
 #include <Preferences.h>
+#include "basa.h"
 
 // Pins — Board Version 4.0
 const int PIN_UP = 11;
@@ -190,13 +191,10 @@ void setup() {
   tft.setRotation(1);
   tft.fillScreen(COLOR_BG);
 
-  // Splash Screen
-  tft.setCursor(0, 80);
-  tft.setTextColor(ST77XX_RED);
-  tft.setTextSize(3);
-  tft.println("    MARS BASE\n");
-  tft.setTextColor(ST77XX_GREEN);
-  tft.println("  Access Control");
+  // Splash Screen (Image)
+  int16_t x = (320 - basa_width) / 2;
+  int16_t y = (240 - basa_height) / 2;
+  tft.drawRGBBitmap(x, y, basa_img, basa_width, basa_height);
   delay(5000);
 
   loadConfig();
