@@ -319,21 +319,31 @@ void handleAdminMenu() {
         enteredCode = "";
         tft.fillScreen(COLOR_BG);
         tft.setCursor(20, 40);
+        tft.setTextSize(2);
         tft.println("New 4-digit Code:");
+        drawDiamond(0);
+        
         while(enteredCode.length() < CODE_LENGTH) {
           for (int i = 0; i < 4; i++) {
             if (digitalRead(buttonPins[i]) == HIGH) {
               enteredCode += String(i+1);
-              tft.setCursor(20 + enteredCode.length()*20, 80);
-              tft.print("*");
+              
+              // Draw progress
+              tft.setCursor(220, 40);
+              tft.setTextColor(COLOR_TEXT);
+              for (int j = 0; j < enteredCode.length(); j++) tft.print("*");
+              
+              drawDiamond(i+1);
               playTone(2000, 50);
               delay(300);
+              drawDiamond(0);
             }
           }
         }
         strncpy(config.userCode, enteredCode.c_str(), 5);
         saveConfig();
-        tft.setCursor(20, 120);
+        tft.setCursor(20, 200);
+        tft.setTextColor(COLOR_SUCCESS);
         tft.println("Code Saved!");
         delay(1500);
         drawMenu(selection);
