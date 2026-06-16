@@ -30,6 +30,7 @@ const int PIN_GREEN = 4;
 const int PIN_BLUE = 5;
 const int PIN_BUZZER = 48;
 const int PIN_SERVO = 15;
+const int PIN_DOOR_SENSOR = 17;
 
 // Display pins
 #define TFT_CS   0
@@ -48,10 +49,12 @@ enum SystemState {
   STATE_CODE_ENTRY,
   STATE_ACCESS_GRANTED,
   STATE_ACCESS_DENIED,
-  STATE_ADMIN_MENU
+  STATE_ADMIN_MENU,
+  STATE_ALARM
 };
 
 SystemState currentState = STATE_CODE_ENTRY;
+const char* alarmReason = "";
 
 // Hardware objects
 Adafruit_ST7789 tft = Adafruit_ST7789(TFT_CS, TFT_DC, TFT_RST);
@@ -63,6 +66,7 @@ struct Config {
   char userCode[5];
   bool buzzerEnabled;
   bool ledEnabled;
+  bool doorSensorEnabled;
 } config;
 
 // Input variables
@@ -83,6 +87,7 @@ void loadConfig() {
   strncpy(config.userCode, code.c_str(), 5);
   config.buzzerEnabled = preferences.getBool("buzzerOn", true);
   config.ledEnabled = preferences.getBool("ledOn", true);
+  config.doorSensorEnabled = preferences.getBool("doorSensOn", false);
   preferences.end();
 }
 
@@ -91,6 +96,7 @@ void saveConfig() {
   preferences.putString("userCode", config.userCode);
   preferences.putBool("buzzerOn", config.buzzerEnabled);
   preferences.putBool("ledOn", config.ledEnabled);
+  preferences.putBool("doorSensOn", config.doorSensorEnabled);
   preferences.end();
 }
 
@@ -179,6 +185,7 @@ void setup() {
   pinMode(PIN_RIGHT, INPUT);
   pinMode(PIN_A, INPUT);
   pinMode(PIN_B, INPUT);
+  pinMode(PIN_DOOR_SENSOR, INPUT_PULLUP);
   
   pinMode(PIN_RED, OUTPUT);
   pinMode(PIN_GREEN, OUTPUT);
@@ -245,7 +252,38 @@ void handleAccessGranted() {
   
   myServo.write(180); // Unlock
   playTone(2500, 500);
-  delay(5000);
+  
+  if (config.doorSensorEnabled) {
+    unsigned long waitStart = millis();
+    bool doorWasOpened = false;
+    
+    while (true) {
+      bool doorOpen = (digitalRead(PIN_DOOR_SENSOR) == HIGH);
+      
+      if (doorOpen && !doorWasOpened) {
+        doorWasOpened = true;
+        waitStart = millis(); // Reset 10s timer for closing
+        tft.setCursor(60, 160);
+        tft.setTextSize(2);
+        tft.setTextColor(COLOR_TEXT);
+        tft.print("Door Open...");
+      }
+      
+      if (doorWasOpened) {
+        if (!doorOpen) break; // Door closed
+        if (millis() - waitStart > 10000) {
+          alarmReason = "DOOR AJAR";
+          currentState = STATE_ALARM;
+          return;
+        }
+      } else {
+        if (millis() - waitStart > 10000) break; // Timeout waiting for open
+      }
+      delay(10);
+    }
+  } else {
+    delay(5000);
+  }
   
   myServo.write(0); // Lock
   setRgbColor(0, 0, 0);
@@ -285,15 +323,16 @@ void handleAdminMenu() {
     tft.setCursor(80, 20);
     tft.println("ADMIN SETTINGS");
     
-    const char* options[] = {"Change User Code", "Toggle Buzzer", "Toggle LED", "Exit"};
-    for (int i = 0; i < 4; i++) {
-      tft.setCursor(20, 60 + i * 30);
+    const char* options[] = {"Change User Code", "Toggle Buzzer", "Toggle LED", "Door Sensor", "Exit"};
+    for (int i = 0; i < 5; i++) {
+      tft.setCursor(20, 50 + i * 30);
       if (i == sel) tft.print("> ");
       else tft.print("  ");
       tft.print(options[i]);
       
       if (i == 1) tft.print(config.buzzerEnabled ? " [ON]" : " [OFF]");
       if (i == 2) tft.print(config.ledEnabled ? " [ON]" : " [OFF]");
+      if (i == 3) tft.print(config.doorSensorEnabled ? " [ON]" : " [OFF]");
     }
   };
 
@@ -301,12 +340,12 @@ void handleAdminMenu() {
 
   while (!exitMenu) {
     if (digitalRead(PIN_UP) == HIGH) {
-      selection = (selection - 1 + 4) % 4;
+      selection = (selection - 1 + 5) % 5;
       drawMenu(selection);
       delay(200);
     }
     if (digitalRead(PIN_DOWN) == HIGH) {
-      selection = (selection + 1) % 4;
+      selection = (selection + 1) % 5;
       drawMenu(selection);
       delay(200);
     }
@@ -354,6 +393,10 @@ void handleAdminMenu() {
         saveConfig();
         drawMenu(selection);
       } else if (selection == 3) {
+        config.doorSensorEnabled = !config.doorSensorEnabled;
+        saveConfig();
+        drawMenu(selection);
+      } else if (selection == 4) {
         exitMenu = true;
       }
     }
@@ -368,7 +411,42 @@ void handleAdminMenu() {
   resetCodeEntry();
 }
 
+void handleAlarm(const char* msg) {
+  tft.fillScreen(COLOR_FAILURE);
+  tft.setCursor(60, 80);
+  tft.setTextSize(4);
+  tft.setTextColor(COLOR_TEXT);
+  tft.println("ALARM!");
+  
+  tft.setCursor(40, 140);
+  tft.setTextSize(2);
+  tft.println(msg);
+  tft.setCursor(40, 180);
+  tft.println("Press 'A' to Reset");
+  
+  while(digitalRead(PIN_A) == LOW) {
+    setRgbColor(255, 0, 0);
+    tone(PIN_BUZZER, 1500, 200);
+    delay(250);
+    setRgbColor(0, 0, 0);
+    tone(PIN_BUZZER, 800, 200);
+    delay(250);
+  }
+  
+  delay(500); // Debounce
+  currentState = STATE_CODE_ENTRY;
+  resetCodeEntry();
+}
+
 void loop() {
+  // Check for unauthorized opening
+  if (config.doorSensorEnabled && currentState == STATE_CODE_ENTRY) {
+    if (digitalRead(PIN_DOOR_SENSOR) == HIGH) {
+      alarmReason = "FORCED ENTRY";
+      currentState = STATE_ALARM;
+    }
+  }
+
   switch (currentState) {
     case STATE_CODE_ENTRY:
       handleCodeEntry();
@@ -381,6 +459,9 @@ void loop() {
       break;
     case STATE_ADMIN_MENU:
       handleAdminMenu();
+      break;
+    case STATE_ALARM:
+      handleAlarm(alarmReason);
       break;
   }
   delay(10);
