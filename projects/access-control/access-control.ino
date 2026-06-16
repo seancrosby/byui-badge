@@ -422,17 +422,58 @@ void handleAlarm(const char* msg) {
   tft.setTextSize(2);
   tft.println(msg);
   tft.setCursor(40, 180);
-  tft.println("Press 'A' to Reset");
-  
-  while(digitalRead(PIN_A) == LOW) {
-    setRgbColor(255, 0, 0);
-    tone(PIN_BUZZER, 1500, 200);
-    delay(250);
-    setRgbColor(0, 0, 0);
-    tone(PIN_BUZZER, 800, 200);
-    delay(250);
+  tft.println("Code or 'A' to Reset");
+
+  String alarmEntry = "";
+  unsigned long lastToggle = 0;
+  bool toggleState = false;
+
+  while(true) {
+    // Non-blocking Siren/LED toggle
+    if (millis() - lastToggle > 250) {
+      lastToggle = millis();
+      toggleState = !toggleState;
+      if (toggleState) {
+        setRgbColor(255, 0, 0);
+        tone(PIN_BUZZER, 1500, 150);
+      } else {
+        setRgbColor(0, 0, 0);
+        tone(PIN_BUZZER, 800, 150);
+      }
+    }
+
+    // Check Button A (Instant Reset)
+    if (digitalRead(PIN_A) == HIGH) break;
+
+    // Check Keypad for Admin Code
+    for (int i = 0; i < 4; i++) {
+      bool state = digitalRead(buttonPins[i]) == HIGH;
+      if (state && !lastButtonStates[i]) {
+        alarmEntry += String(i + 1);
+        playTone(2000, 50);
+        
+        // Show progress on screen
+        tft.fillRect(40, 210, 240, 20, COLOR_FAILURE);
+        tft.setCursor(40, 210);
+        for(int j=0; j<alarmEntry.length(); j++) tft.print("*");
+
+        if (alarmEntry.length() == CODE_LENGTH) {
+          if (alarmEntry == String(ADMIN_CODE)) {
+            goto exit_alarm;
+          } else {
+            alarmEntry = ""; // Reset entry on wrong code
+            tft.fillRect(40, 210, 240, 20, COLOR_FAILURE);
+          }
+        }
+      }
+      lastButtonStates[i] = state;
+    }
+    delay(10);
   }
-  
+
+exit_alarm:
+  noTone(PIN_BUZZER);
+  setRgbColor(0, 0, 0);
   delay(500); // Debounce
   currentState = STATE_CODE_ENTRY;
   resetCodeEntry();
