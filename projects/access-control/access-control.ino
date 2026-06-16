@@ -422,7 +422,7 @@ void handleAlarm(const char* msg) {
   tft.setTextSize(2);
   tft.println(msg);
   tft.setCursor(40, 180);
-  tft.println("Code or 'A' to Reset");
+  tft.println("Code to Reset");
 
   String alarmEntry = "";
   unsigned long lastToggle = 0;
@@ -441,9 +441,6 @@ void handleAlarm(const char* msg) {
         tone(PIN_BUZZER, 800, 150);
       }
     }
-
-    // Check Button A (Instant Reset)
-    if (digitalRead(PIN_A) == HIGH) break;
 
     // Check Keypad for Admin Code
     for (int i = 0; i < 4; i++) {
