@@ -244,7 +244,7 @@ void handleCodeEntry() {
 
 void handleAccessGranted() {
   tft.fillScreen(COLOR_BG);
-  tft.setCursor(60, 100);
+  tft.setCursor(30, 100);
   tft.setTextSize(3);
   tft.setTextColor(COLOR_SUCCESS);
   tft.print("ACCESS GRANTED");
@@ -293,7 +293,7 @@ void handleAccessGranted() {
 
 void handleAccessDenied() {
   tft.fillScreen(COLOR_BG);
-  tft.setCursor(65, 100);
+  tft.setCursor(35, 100);
   tft.setTextSize(3);
   tft.setTextColor(COLOR_FAILURE);
   tft.print("ACCESS DENIED");
@@ -422,7 +422,7 @@ void handleAlarm(const char* msg) {
   tft.setTextSize(2);
   tft.println(msg);
   tft.setCursor(40, 180);
-  tft.println("Code to Reset");
+  tft.println("Enter Admin Code");
 
   String alarmEntry = "";
   unsigned long lastToggle = 0;
